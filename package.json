@@ -1,0 +1,8 @@
+{
+  "name": "hello-jenkins",
+  "version": "1.0.0",
+  "scripts": {
+    "start:qa": "PORT=4000 node server.js",
+    "start:prod": "PORT=80 node server.js"
+  }
+}
