@@ -1,10 +1,10 @@
 pipeline {
     agent any
 
-    environment {
-        // Points Jenkins to your NVM Node location
-        PATH = "/home/dell/.nvm/versions/node/v18.20.4/bin:${env.PATH}"
-    }
+      environment {
+          // Add your NVM bin path to the environment
+          PATH = "/home/dell/.nvm/versions/node/v18.20.4/bin:${env.PATH}"
+      }
 
     stages {
         stage('Install') {
