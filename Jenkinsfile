@@ -14,7 +14,7 @@ pipeline {
         }
 
         stage('Deploy QA') {
-            when { branch 'main' } // When you push to 'main'
+            when { branch 'release' } // When you push to 'main'
             steps {
                 echo "Deploying to QA on Port 4000"
                 sh 'pm2 startOrReload ecosystem.config.js --only hello-qa'
