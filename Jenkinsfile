@@ -4,7 +4,7 @@ pipeline {
     parameters {
         booleanParam(name: 'DEPLOY_QA', defaultValue: false, description: 'Deploy to QA after build')
         string(name: 'DOCKER_IMAGE_NAME', defaultValue: 'jenkin_nextjs', description: 'Base Docker image name')
-        string(name: 'DATABASE_URL', defaultValue: 'mysql://root:password@host.docker.internal:3306/jenkin_nextjs', description: 'MySQL connection string for the app')
+        string(name: 'DATABASE_URL', defaultValue: 'mysql://root:password@127.0.0.1:3306/jenkin_nextjs', description: 'MySQL connection string for the app')
         password(name: 'JWT_SECRET', defaultValue: 'd77343a695f46af0bc61e5337c682f28c3a7d9267f44f9e4be6cde4ce319aa2e', description: 'JWT secret for the app')
     }
 
