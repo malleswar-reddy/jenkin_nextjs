@@ -7,39 +7,53 @@ pipeline {
     }
 
     environment {
-        // Node path (adjust for your Jenkins agent)
-        PATH = "/home/dell/.nvm/versions/node/v18.20.4/bin:${env.PATH}"
+        // Remove hardcoded Node PATH; use Dockerized Node 20 for build stages
     }
 
     stages {
         stage('Setup') {
             steps {
                 script {
-                    def branch = env.BRANCH_NAME
+                    def rawBranch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
+                    // Normalize: remove refs/* prefixes, trim whitespace, lowercase
+                    def branch = rawBranch.replaceFirst(/^refs\/heads\//, '').trim().toLowerCase()
                     def baseImage = params.DOCKER_IMAGE_NAME ?: 'jenkin_nextjs'
                     def tag = branch ? branch : 'local'
                     env.IMAGE_TAG = "${baseImage}:${tag}"
+                    echo "Branch detected: '${branch}' from raw '${rawBranch}'"
                     echo "Computed IMAGE_TAG=${env.IMAGE_TAG}"
                 }
             }
         }
 
-        stage('Install') {
+        stage('Install (Node 20)') {
             steps {
-                sh 'npm ci'
+                script {
+                    docker.image('node:20').inside {
+                        sh 'npm ci'
+                    }
+                }
             }
         }
 
-        stage('Prisma Generate') {
+        stage('Prisma Generate (Node 20)') {
             steps {
-                sh 'npx prisma generate'
+                script {
+                    docker.image('node:20').inside {
+                        sh 'npx prisma generate'
+                    }
+                }
             }
         }
 
-        stage('Build Next (host)') {
+        stage('Build Next (host, Node 20)') {
             steps {
-                // Build on host to produce .next/standalone and .next/static
-                sh 'npm run build'
+                script {
+                    docker.image('node:20').inside {
+                        // Build on host (container) to produce .next/standalone and .next/static
+                        sh 'npm run build'
+                    }
+                }
             }
         }
 
@@ -74,7 +88,7 @@ pipeline {
 
     post {
         always {
-            echo "Branch: ${env.BRANCH_NAME}, Image: ${env.IMAGE_TAG}"
+            echo "Branch: ${env.BRANCH_NAME ?: env.GIT_BRANCH}, Image: ${env.IMAGE_TAG}"
         }
     }
 }
