@@ -58,8 +58,22 @@ pipeline {
         stage('Wait for QA DB Health') {
             when { expression { return params.DEPLOY_QA } }
             steps {
-                sh 'docker inspect --format={{.State.Health.Status}} jenkin_nextjs_qa_db || true'
-                sh 'for i in {1..30}; do st=$(docker inspect --format={{.State.Health.Status}} $(docker compose ps -q qa_db)); echo "DB health: $st"; if [ "$st" = "healthy" ]; then exit 0; fi; sleep 5; done; echo "DB failed to become healthy"; exit 1'
+                sh '''
+set -e
+CID=$(docker compose ps -q qa_db)
+if [ -z "$CID" ]; then
+  echo "qa_db container not found"; exit 1
+fi
+for i in {1..30}; do
+  ST=$(docker inspect --format={{.State.Health.Status}} "$CID" 2>/dev/null || echo "unknown")
+  echo "DB health: $ST"
+  if [ "$ST" = "healthy" ]; then
+    exit 0
+  fi
+  sleep 5
+done
+echo "DB failed to become healthy"; exit 1
+'''
             }
         }
 
