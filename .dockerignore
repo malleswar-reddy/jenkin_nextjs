@@ -1,0 +1,11 @@
+node_modules
+# Allow prebuilt Next artifacts to be copied
+!.next/standalone
+!.next/static
+.env
+.env.local
+.env.*
+npm-debug.log
+.DS_Store
+.idea
+.vscode
