@@ -23,34 +23,21 @@ pipeline {
             }
         }
 
-        stage('Install (Node 20)') {
+        stage('Install (Node 20 via docker run)') {
             steps {
-                script {
-                    docker.image('node:20').inside {
-                        sh 'npm ci'
-                    }
-                }
+                sh "docker run --rm -v $WORKSPACE:/workspace -w /workspace node:20 sh -lc 'npm ci'"
             }
         }
 
-        stage('Prisma Generate (Node 20)') {
+        stage('Prisma Generate (Node 20 via docker run)') {
             steps {
-                script {
-                    docker.image('node:20').inside {
-                        sh 'npx prisma generate'
-                    }
-                }
+                sh "docker run --rm -v $WORKSPACE:/workspace -w /workspace node:20 sh -lc 'npx prisma generate'"
             }
         }
 
-        stage('Build Next (host, Node 20)') {
+        stage('Build Next (host, Node 20 via docker run)') {
             steps {
-                script {
-                    docker.image('node:20').inside {
-                        // Build on host (container) to produce .next/standalone and .next/static
-                        sh 'npm run build'
-                    }
-                }
+                sh "docker run --rm -v $WORKSPACE:/workspace -w /workspace node:20 sh -lc 'npm run build'"
             }
         }
 
