@@ -3,6 +3,7 @@ pipeline {
 
     parameters {
         booleanParam(name: 'DEPLOY_QA', defaultValue: false, description: 'Deploy to QA after build')
+        booleanParam(name: 'DEPLOY_PROD', defaultValue: false, description: 'Deploy to Prod after build')
         string(name: 'DOCKER_IMAGE_NAME', defaultValue: 'jenkin_nextjs', description: 'Base Docker image name')
         string(name: 'DATABASE_URL', defaultValue: 'mysql://root:password@127.0.0.1:3306/jenkin_nextjs', description: 'MySQL connection string for the app')
         password(name: 'JWT_SECRET', defaultValue: 'd77343a695f46af0bc61e5337c682f28c3a7d9267f44f9e4be6cde4ce319aa2e', description: 'JWT secret for the app')
@@ -99,8 +100,48 @@ echo "DB failed to become healthy"; exit 1
             }
         }
 
+        stage('Prod DB Up') {
+            when { expression { return params.DEPLOY_PROD } }
+            steps {
+                // Reuse qa_db for simplicity or define a separate prod_db in compose if needed
+                sh 'docker compose up -d qa_db'
+            }
+        }
+        stage('Wait for Prod DB Health') {
+            when { expression { return params.DEPLOY_PROD } }
+            steps {
+                sh '''
+CID=$(docker compose ps -q qa_db)
+if [ -z "$CID" ]; then
+  echo "qa_db container not found"; exit 1
+fi
+i=0
+while [ $i -lt 30 ]; do
+  ST=$(docker inspect --format={{.State.Health.Status}} "$CID" 2>/dev/null || echo "unknown")
+  echo "DB health: $ST"
+  if [ "$ST" = "healthy" ]; then
+    exit 0
+  fi
+  sleep 5
+  i=$((i+1))
+done
+echo "DB failed to become healthy"; exit 1
+'''
+            }
+        }
+        stage('Prisma Migrate Deploy (Prod)') {
+            when { expression { return params.DEPLOY_PROD } }
+            steps {
+                sh "docker run --rm --network host -v $WORKSPACE:/workspace -w /workspace node:20 sh -lc 'DATABASE_URL=\"${params.DATABASE_URL}\" npx prisma migrate deploy'"
+            }
+        }
         stage('Deploy Prod (Docker)') {
-            when { branch 'release' }
+            when {
+                allOf {
+                    branch 'release'
+                    expression { return params.DEPLOY_PROD }
+                }
+            }
             steps {
                 echo "Deploying Prod using Docker image ${env.IMAGE_TAG}"
                 sh "docker rm -f jenkin_nextjs_prod || true"
