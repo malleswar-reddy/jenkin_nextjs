@@ -9,11 +9,21 @@ pipeline {
     environment {
         // Node path (adjust for your Jenkins agent)
         PATH = "/home/dell/.nvm/versions/node/v18.20.4/bin:${env.PATH}"
-        BRANCH_NAME = env.BRANCH_NAME
-        IMAGE_TAG = "${params.DOCKER_IMAGE_NAME}:${env.BRANCH_NAME ?: 'local'}"
     }
 
     stages {
+        stage('Setup') {
+            steps {
+                script {
+                    def branch = env.BRANCH_NAME
+                    def baseImage = params.DOCKER_IMAGE_NAME ?: 'jenkin_nextjs'
+                    def tag = branch ? branch : 'local'
+                    env.IMAGE_TAG = "${baseImage}:${tag}"
+                    echo "Computed IMAGE_TAG=${env.IMAGE_TAG}"
+                }
+            }
+        }
+
         stage('Install') {
             steps {
                 sh 'npm ci'
@@ -35,7 +45,7 @@ pipeline {
 
         stage('Docker Build (runtime-only)') {
             steps {
-                sh "docker build -t ${IMAGE_TAG} ."
+                sh "docker build -t ${env.IMAGE_TAG} ."
             }
         }
 
@@ -47,7 +57,7 @@ pipeline {
                 }
             }
             steps {
-                echo "Deploying QA using PM2 and image ${IMAGE_TAG}"
+                echo "Deploying QA using PM2 and image ${env.IMAGE_TAG}"
                 // Keep existing PM2 flow; alternatively, run container with docker
                 sh 'pm2 startOrReload ecosystem.config.js --only hello-qa'
             }
@@ -64,7 +74,7 @@ pipeline {
 
     post {
         always {
-            echo "Branch: ${env.BRANCH_NAME}, Image: ${IMAGE_TAG}"
+            echo "Branch: ${env.BRANCH_NAME}, Image: ${env.IMAGE_TAG}"
         }
     }
 }
