@@ -16,6 +16,12 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+    networks:
+      - qa_net
 
 volumes:
   qa_db_data:
+
+networks:
+  qa_net:
+    name: jenkin_nextjs_net

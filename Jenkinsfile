@@ -5,7 +5,7 @@ pipeline {
         booleanParam(name: 'DEPLOY_QA', defaultValue: false, description: 'Deploy to QA after build')
         booleanParam(name: 'DEPLOY_PROD', defaultValue: false, description: 'Deploy to Prod after build')
         string(name: 'DOCKER_IMAGE_NAME', defaultValue: 'jenkin_nextjs', description: 'Base Docker image name')
-        string(name: 'DATABASE_URL', defaultValue: 'mysql://root:password@127.0.0.1:3306/jenkin_nextjs', description: 'MySQL connection string for the app')
+        string(name: 'DATABASE_URL', defaultValue: 'mysql://root:password@qa_db:3306/jenkin_nextjs', description: 'MySQL connection string for the app')
         password(name: 'JWT_SECRET', defaultValue: 'd77343a695f46af0bc61e5337c682f28c3a7d9267f44f9e4be6cde4ce319aa2e', description: 'JWT secret for the app')
     }
 
@@ -82,7 +82,8 @@ echo "DB failed to become healthy"; exit 1
         stage('Prisma Migrate Deploy (QA)') {
             when { expression { return params.DEPLOY_QA } }
             steps {
-                sh "docker run --rm --network host -v $WORKSPACE:/workspace -w /workspace node:20 sh -lc 'DATABASE_URL=\"${params.DATABASE_URL}\" npx prisma migrate deploy'"
+                // Use compose network and service hostname for DB connectivity
+                sh "docker run --rm --network jenkin_nextjs_net -v $WORKSPACE:/workspace -w /workspace node:20 sh -lc 'DATABASE_URL=\"${params.DATABASE_URL}\" npx prisma migrate deploy'"
             }
         }
 
@@ -96,7 +97,7 @@ echo "DB failed to become healthy"; exit 1
             steps {
                 echo "Deploying QA using Docker image ${env.IMAGE_TAG}"
                 sh "docker rm -f jenkin_nextjs_qa || true"
-                sh "docker run -d --name jenkin_nextjs_qa -e NODE_ENV=production -e DATABASE_URL='${params.DATABASE_URL}' -e JWT_SECRET='${params.JWT_SECRET}' -p 4000:3000 ${env.IMAGE_TAG}"
+                sh "docker run -d --name jenkin_nextjs_qa --network jenkin_nextjs_net -e NODE_ENV=production -e DATABASE_URL='${params.DATABASE_URL}' -e JWT_SECRET='${params.JWT_SECRET}' -p 4000:3000 ${env.IMAGE_TAG}"
             }
         }
 
@@ -132,7 +133,7 @@ echo "DB failed to become healthy"; exit 1
         stage('Prisma Migrate Deploy (Prod)') {
             when { expression { return params.DEPLOY_PROD } }
             steps {
-                sh "docker run --rm --network host -v $WORKSPACE:/workspace -w /workspace node:20 sh -lc 'DATABASE_URL=\"${params.DATABASE_URL}\" npx prisma migrate deploy'"
+                sh "docker run --rm --network jenkin_nextjs_net -v $WORKSPACE:/workspace -w /workspace node:20 sh -lc 'DATABASE_URL=\"${params.DATABASE_URL}\" npx prisma migrate deploy'"
             }
         }
         stage('Deploy Prod (Docker)') {
@@ -145,7 +146,7 @@ echo "DB failed to become healthy"; exit 1
             steps {
                 echo "Deploying Prod using Docker image ${env.IMAGE_TAG}"
                 sh "docker rm -f jenkin_nextjs_prod || true"
-                sh "docker run -d --name jenkin_nextjs_prod -e NODE_ENV=production -e DATABASE_URL='${params.DATABASE_URL}' -e JWT_SECRET='${params.JWT_SECRET}' -p 80:3000 ${env.IMAGE_TAG}"
+                sh "docker run -d --name jenkin_nextjs_prod --network jenkin_nextjs_net -e NODE_ENV=production -e DATABASE_URL='${params.DATABASE_URL}' -e JWT_SECRET='${params.JWT_SECRET}' -p 80:3000 ${env.IMAGE_TAG}"
             }
         }
     }
