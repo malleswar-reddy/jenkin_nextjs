@@ -6,9 +6,6 @@ pipeline {
         string(name: 'DOCKER_IMAGE_NAME', defaultValue: 'jenkin_nextjs', description: 'Base Docker image name')
     }
 
-    environment {
-        // Remove hardcoded Node PATH; use Dockerized Node 20 for build stages
-    }
 
     stages {
         stage('Setup') {
