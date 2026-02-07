@@ -59,18 +59,19 @@ pipeline {
             when { expression { return params.DEPLOY_QA } }
             steps {
                 sh '''
-set -e
 CID=$(docker compose ps -q qa_db)
 if [ -z "$CID" ]; then
   echo "qa_db container not found"; exit 1
 fi
-for i in {1..30}; do
+i=0
+while [ $i -lt 30 ]; do
   ST=$(docker inspect --format={{.State.Health.Status}} "$CID" 2>/dev/null || echo "unknown")
   echo "DB health: $ST"
   if [ "$ST" = "healthy" ]; then
     exit 0
   fi
   sleep 5
+  i=$((i+1))
 done
 echo "DB failed to become healthy"; exit 1
 '''
