@@ -17,10 +17,13 @@ pipeline {
                     // Normalize: remove refs/* prefixes, trim whitespace, lowercase
                     def branch = rawBranch.replaceFirst(/^refs\/heads\//, '').trim().toLowerCase()
                     def baseImage = params.DOCKER_IMAGE_NAME ?: 'jenkin_nextjs'
-                    def tag = branch ? branch : 'local'
-                    env.IMAGE_TAG = "${baseImage}:${tag}"
-                    echo "Branch detected: '${branch}' from raw '${rawBranch}'"
-                    echo "Computed IMAGE_TAG=${env.IMAGE_TAG}"
+                    // Capture short Git commit SHA
+                    def commit = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    // Tag with branch and commit for traceability
+                    env.IMAGE_TAG = "${baseImage}:${branch ?: 'local'}"
+                    env.IMAGE_TAG_COMMIT = "${baseImage}:${commit}"
+                    echo "Branch: ${branch} | Commit: ${commit}"
+                    echo "Docker tags: ${env.IMAGE_TAG} (branch), ${env.IMAGE_TAG_COMMIT} (commit)"
                 }
             }
         }
@@ -45,7 +48,9 @@ pipeline {
 
         stage('Docker Build (runtime-only)') {
             steps {
+                // Build and tag by branch and commit
                 sh "docker build -t ${env.IMAGE_TAG} ."
+                sh "docker tag ${env.IMAGE_TAG} ${env.IMAGE_TAG_COMMIT}"
             }
         }
 
@@ -153,7 +158,9 @@ echo "DB failed to become healthy"; exit 1
 
     post {
         always {
-            echo "Branch: ${env.BRANCH_NAME ?: env.GIT_BRANCH}, Image: ${env.IMAGE_TAG}"
+            echo "Branch: ${env.BRANCH_NAME ?: env.GIT_BRANCH}"
+            echo "Commit: ${sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()}"
+            echo "Images: ${env.IMAGE_TAG}, ${env.IMAGE_TAG_COMMIT}"
         }
     }
 }
