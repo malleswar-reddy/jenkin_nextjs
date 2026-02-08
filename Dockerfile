@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile: build Next.js inside image, then run standalone output
 
-# Build stage
+# Build stage (full Node for tooling)
 FROM node:20 AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -16,16 +16,19 @@ COPY . .
 RUN npx prisma@5 generate
 RUN npm run build
 
-# Runtime stage
-FROM node:20 AS runner
+# Runtime stage (slim Node to reduce image size)
+FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy built output from builder
-COPY --from=builder /app/.next/standalone/ ./
-COPY --from=builder /app/.next/static/ ./.next/static/
-COPY --from=builder /app/public/ ./public/
+# Create non-root user (already present as 'node') and use it
+USER node
+
+# Copy built output from builder (standalone already includes required node_modules)
+COPY --chown=node:node --from=builder /app/.next/standalone/ ./
+COPY --chown=node:node --from=builder /app/.next/static/ ./.next/static/
+COPY --chown=node:node --from=builder /app/public/ ./public/
 
 # Expose port and run standalone server
 EXPOSE 3000
