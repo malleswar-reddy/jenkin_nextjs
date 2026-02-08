@@ -22,7 +22,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user (already present as 'node') and use it
+# Install openssl for Prisma
+USER root
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Use non-root user
 USER node
 
 # Copy built output from builder (standalone already includes required node_modules)
